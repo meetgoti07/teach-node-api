@@ -26,7 +26,7 @@ const attendanceDb = mongoose.connection.useDb('attendance');
 // Define Mongoose models
 const ClassValue = mongoose.model('DropdownValue', { value: String }, 'class');
 const SubjectValue = mongoose.model('SubjectValue', { value: String }, 'subject');
-const RoomValue = mongoose.model('RoomValue', { value: String }, 'room');
+const RoomValue = mongoose.model('RoomValue', { label: String, value: String}, 'room');
 
 const Student = attendanceDb.model('Student', new mongoose.Schema({
   username: String,
