@@ -1,44 +1,32 @@
 const express = require('express');
 const mongoose = require('mongoose');
-const authRoutes = require('./routes/auth');
 const cors = require('cors');
 const { Expo } = require('expo-server-sdk');
+
 let expo = new Expo();
 const app = express();
 
 // Middleware
 app.use(cors());
 app.use(express.json());
-app.use('/auth', authRoutes);
 
 // Connect to MongoDB
 mongoose.connect('mongodb+srv://meetgoti07:Itsmg.07@cluster0.nr24cb3.mongodb.net/teacher', { 
     useNewUrlParser: true, 
     useUnifiedTopology: true 
-}).then(() => {
-    console.log("Connected to teacher DB");
-}).catch(err => {
-    console.error("Failed to connect to teacher DB:", err);
+})
+.then(() => console.log("Connected to teacher DB"))
+.catch(err => console.error("Failed to connect to teacher DB:", err));
+
+const ClassSchema = new mongoose.Schema({
+    value: String,
+    students: [{
+        rollno: String,
+        expoToken: String
+    }]
 });
 
-const attendanceDb = mongoose.connection.useDb('attendance');
-
-// Mongoose models
-const ClassValue = mongoose.model('DropdownValue', { value: String }, 'class');
-const SubjectValue = mongoose.model('SubjectValue', { value: String }, 'subject');
-const RoomValue = mongoose.model('RoomValue', { label: String, value: String}, 'room');
-
-const Student = attendanceDb.model('Student', new mongoose.Schema({
-  username: String,
-  subjects: [{
-      subjectID: String,
-      attendance: [{
-          date: Date,
-          status: String
-      }]
-  }]
-}), 'studattens');
-
+const Class = mongoose.model('Class', ClassSchema);
 
 app.post('/send-notification', async (req, res) => {
     const { batch, message, title } = req.body;
@@ -47,69 +35,49 @@ app.post('/send-notification', async (req, res) => {
         return res.status(400).send('Batch, message, and title are required.');
     }
 
-    // Fetch the students for this batch
-    const batchDocument = await mongoose.connection.collection('class').findOne({ value: batch });
-    if (!batchDocument) {
-        return res.status(400).send('Batch not found.');
-    }
+    try {
+        const batchDocument = await Class.findOne({ value: batch });
 
-    const pushTokens = batchDocument.students.map(s => s.expoToken).filter(Boolean);
-
-    // Construct the message
-    let notifications = [];
-    for (let pushToken of pushTokens) {
-        if (!Expo.isExpoPushToken(pushToken)) {
-            console.error(`Push token ${pushToken} is not a valid Expo push token`);
-            continue;
+        if (!batchDocument || !Array.isArray(batchDocument.students)) {
+            return res.status(400).send('Batch not found or no students in batch.');
         }
 
-        notifications.push({
-            to: pushToken,
+        const pushTokens = batchDocument.students
+            .map(s => s.expoToken)
+            .filter(Boolean);
+
+        if (pushTokens.length === 0) {
+            return res.status(400).send('No valid Expo tokens for the given batch.');
+        }
+
+        let notifications = pushTokens.map(token => ({
+            to: token,
             sound: 'default',
             title: title,
             body: message,
             data: { title, message },
-        });
-    }
+        }));
 
-    let chunks = expo.chunkPushNotifications(notifications);
-    let tickets = [];
-    for (let chunk of chunks) {
-        try {
-            let ticketChunk = await expo.sendPushNotificationsAsync(chunk);
-            tickets.push(...ticketChunk);
+        const chunks = expo.chunkPushNotifications(notifications);
+        let tickets = [];
+
+        for (let chunk of chunks) {
+            try {
+                const ticketChunk = await expo.sendPushNotificationsAsync(chunk);
+                tickets.push(...ticketChunk);
+            } catch (error) {
+                console.error('Error while sending chunk', error);
+            }
         }
-        catch{console.log("ERROR")};
-    }
 
-    res.send({ success: true, tickets });
-});
-
-// Endpoint to update expoToken for a student in a specific class
-app.post('/update-expo-token', async (req, res) => {
-    const { rollno, expoToken } = req.body;
-
-    if (!rollno || !expoToken) {
-        return res.status(400).send("Roll number and expoToken are required");
-    }
-
-    try {
-        const result = await mongoose.connection.collection('class').updateMany(
-            { "students.rollno": rollno },
-            { $set: { "students.$.expoToken": expoToken } }
-        );
-
-        if (result.modifiedCount > 0) {
-            res.status(200).send({ success: true, message: "Token updated successfully." });
-        } else {
-            res.status(400).send({ success: false, message: "Unable to update the token. Check the roll number." });
-        }
+        return res.send({ success: true, tickets });
     } catch (error) {
-        console.error("Error in /update-expo-token:", error);
-        res.status(500).send({ success: false, error: error.message });
+        console.error('Error in /send-notification:', error);
+        return res.status(500).send('Internal Server Error');
     }
 });
 
+// The rest of your endpoints...
 
 // Other endpoints
 app.get('/get-class-values', async (req, res) => {
@@ -125,7 +93,8 @@ app.get('/get-subject-values', async (req, res) => {
     try {
       const values = await SubjectValue.find();
       res.status(200).send({ success: true, data: values });
-    } catch (error){console.error("Error in /get-subject-values:", error);
+    } catch (error){
+      console.error("Error in /get-subject-values:", error);
       res.status(500).send({ success: false, error: error.message });
     }
 });
