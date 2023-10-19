@@ -28,7 +28,7 @@ const ClassSchema = new mongoose.Schema({
 
 const Class = mongoose.model('Class', ClassSchema, 'class');
 const ClassValue = mongoose.model('ClassValue', { value: String }, 'class');
-const SubjectValue = mongoose.model('SubjectValue', { value: String },, 'subject');
+const SubjectValue = mongoose.model('SubjectValue', { value: String }, 'subject');
 const RoomValue = mongoose.model('RoomValue', { value: String }, 'room');
 
 const attendanceDb = mongoose.createConnection('mongodb+srv://meetgoti07:Itsmg.07@cluster0.nr24cb3.mongodb.net/attendance', {
