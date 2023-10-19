@@ -27,6 +27,25 @@ const ClassSchema = new mongoose.Schema({
 });
 
 const Class = mongoose.model('Class', ClassSchema);
+const ClassValue = mongoose.model('ClassValue', { value: String });
+const SubjectValue = mongoose.model('SubjectValue', { value: String });
+const RoomValue = mongoose.model('RoomValue', { value: String });
+
+const attendanceDb = mongoose.createConnection('mongodb+srv://meetgoti07:Itsmg.07@cluster0.nr24cb3.mongodb.net/attendance', {
+    useNewUrlParser: true,
+    useUnifiedTopology: true
+});
+
+const Student = attendanceDb.model('Student', new mongoose.Schema({
+    username: String,
+    subjects: [{
+        subjectID: String,
+        attendance: [{
+            date: Date,
+            status: String
+        }]
+    }]
+}));
 
 app.post('/send-notification', async (req, res) => {
     const { batch, message, title } = req.body;
@@ -113,15 +132,18 @@ app.get('/attendance', async (req, res) => {
     const { subjectId, batchValue, month } = req.query;
 
     try {
-        const batch = await mongoose.connection.collection('class').findOne({ value: batchValue });
+        const batch = await Class.findOne({ value: batchValue });
+
+        if (!batch || !Array.isArray(batch.students)) {
+            return res.status(400).send('Batch not found or no students in batch.');
+        }
+
         const studentRollNumbers = batch.students.map(student => student.rollno);
 
-        const attendanceData = await attendanceDb.collection('studattens')
-            .find({ 
-                "username": { $in: studentRollNumbers },
-                "subjects.subjectID": subjectId
-            })
-            .toArray();
+        const attendanceData = await Student.find({
+            "username": { $in: studentRollNumbers },
+            "subjects.subjectID": subjectId
+        });
 
         const refinedData = attendanceData.map(student => {
             const subject = student.subjects.find(s => s.subjectID === subjectId);
