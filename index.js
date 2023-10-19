@@ -2,7 +2,8 @@ const express = require('express');
 const mongoose = require('mongoose');
 const authRoutes = require('./routes/auth');
 const cors = require('cors');
-
+const { Expo } = require('expo-server-sdk');
+let expo = new Expo();
 const app = express();
 
 // Middleware
@@ -37,6 +38,52 @@ const Student = attendanceDb.model('Student', new mongoose.Schema({
       }]
   }]
 }), 'studattens');
+
+
+app.post('/send-notification', async (req, res) => {
+    const { batch, message, title } = req.body;
+
+    if (!batch || !message || !title) {
+        return res.status(400).send('Batch, message, and title are required.');
+    }
+
+    // Fetch the students for this batch
+    const batchDocument = await mongoose.connection.collection('class').findOne({ value: batch });
+    if (!batchDocument) {
+        return res.status(400).send('Batch not found.');
+    }
+
+    const pushTokens = batchDocument.students.map(s => s.expoToken).filter(Boolean);
+
+    // Construct the message
+    let notifications = [];
+    for (let pushToken of pushTokens) {
+        if (!Expo.isExpoPushToken(pushToken)) {
+            console.error(`Push token ${pushToken} is not a valid Expo push token`);
+            continue;
+        }
+
+        notifications.push({
+            to: pushToken,
+            sound: 'default',
+            title: title,
+            body: message,
+            data: { title, message },
+        });
+    }
+
+    let chunks = expo.chunkPushNotifications(notifications);
+    let tickets = [];
+    for (let chunk of chunks) {
+        try {
+            let ticketChunk = await expo.sendPushNotificationsAsync(chunk);
+            tickets.push(...ticketChunk);
+        }
+        catch{console.log("ERROR")};
+    }
+
+    res.send({ success: true, tickets });
+});
 
 // Endpoint to update expoToken for a student in a specific class
 app.post('/update-expo-token', async (req, res) => {
@@ -78,7 +125,7 @@ app.get('/get-subject-values', async (req, res) => {
     try {
       const values = await SubjectValue.find();
       res.status(200).send({ success: true, data: values });
-    } catch (error) kicker      console.error("Error in /get-subject-values:", error);
+    } catch (error){console.error("Error in /get-subject-values:", error);
       res.status(500).send({ success: false, error: error.message });
     }
 });
