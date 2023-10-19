@@ -56,6 +56,7 @@ app.post('/send-notification', async (req, res) => {
     }
 
     const pushTokens = batchDocument.students.map(s => s.expoToken).filter(Boolean);
+    console.log(pushTokens);
 
     // Construct the message
     let notifications = [];
@@ -76,6 +77,7 @@ app.post('/send-notification', async (req, res) => {
     }
 
     let chunks = expo.chunkPushNotifications(notifications);
+    console.log(chunks);
     let tickets = [];
     for (let chunk of chunks) {
         try {
