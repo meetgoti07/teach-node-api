@@ -44,12 +44,14 @@ app.post('/send-notification', async (req, res) => {
     const { batch, message, title } = req.body;
 
     if (!batch || !message || !title) {
+        console.log("1");
         return res.status(400).send('Batch, message, and title are required.');
     }
 
     // Fetch the students for this batch
     const batchDocument = await mongoose.connection.collection('class').findOne({ value: batch });
     if (!batchDocument) {
+        console.log("2");
         return res.status(400).send('Batch not found.');
     }
 
@@ -59,6 +61,7 @@ app.post('/send-notification', async (req, res) => {
     let notifications = [];
     for (let pushToken of pushTokens) {
         if (!Expo.isExpoPushToken(pushToken)) {
+            console.log("3");
             console.error(`Push token ${pushToken} is not a valid Expo push token`);
             continue;
         }
