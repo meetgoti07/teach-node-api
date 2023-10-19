@@ -40,28 +40,29 @@ const Student = attendanceDb.model('Student', new mongoose.Schema({
 
 // Endpoint to update expoToken for a student in a specific class
 app.post('/update-expo-token', async (req, res) => {
-    const { rollno, className, expoToken } = req.body;
+    const { rollno, expoToken } = req.body;
 
-    if (!rollno || !className || !expoToken) {
-        return res.status(400).send("Roll number, class name, and expoToken are required");
+    if (!rollno || !expoToken) {
+        return res.status(400).send("Roll number and expoToken are required");
     }
 
     try {
-        const result = await mongoose.connection.collection('class').updateOne(
-            { "value": className, "students.rollno": rollno },
+        const result = await mongoose.connection.collection('class').updateMany(
+            { "students.rollno": rollno },
             { $set: { "students.$.expoToken": expoToken } }
         );
 
-        if (result.modifiedCount === 1) {
+        if (result.modifiedCount > 0) {
             res.status(200).send({ success: true, message: "Token updated successfully." });
         } else {
-            res.status(400).send({ success: false, message: "Unable to update the token. Check the roll number and class name." });
+            res.status(400).send({ success: false, message: "Unable to update the token. Check the roll number." });
         }
     } catch (error) {
         console.error("Error in /update-expo-token:", error);
         res.status(500).send({ success: false, error: error.message });
     }
 });
+
 
 // Other endpoints
 app.get('/get-class-values', async (req, res) => {
