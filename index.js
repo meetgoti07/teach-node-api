@@ -11,7 +11,7 @@ app.use(express.json());
 app.use('/auth', authRoutes);
 
 // Connect to MongoDB
-mongoose.connect('mongodb+srv://[YOUR_MONGO_CREDENTIALS]/teacher', { 
+mongoose.connect('mongodb+srv://meetgoti07:Itsmg.07@cluster0.nr24cb3.mongodb.net/teacher', { 
     useNewUrlParser: true, 
     useUnifiedTopology: true 
 }).then(() => {
