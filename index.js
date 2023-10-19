@@ -86,6 +86,7 @@ app.post('/send-notification', async (req, res) => {
         }
         catch{console.log("ERROR")};
     }
+    console.log(tickets);
 
     res.send({ success: true, tickets });
 });
