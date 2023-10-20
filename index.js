@@ -1,10 +1,14 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const authRoutes = require('./routes/auth');
+const bodyParser = require('body-parser');
 const cors = require('cors');
 const { Expo } = require('expo-server-sdk');
 let expo = new Expo();
 const app = express();
+
+
+app.use(bodyParser.json());
 
 // Middleware
 app.use(cors());
