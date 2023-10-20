@@ -1,14 +1,11 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const authRoutes = require('./routes/auth');
-const bodyParser = require('body-parser');
 const cors = require('cors');
 const { Expo } = require('expo-server-sdk');
 let expo = new Expo();
 const app = express();
 
-
-app.use(bodyParser.json());
 
 // Middleware
 app.use(cors());
@@ -98,9 +95,9 @@ app.post('/send-notification', async (req, res) => {
 // Endpoint to update expoToken for a student in a specific class
 app.post('/update-expo-token', async (req, res) => {
     const { rollno, expoToken } = req.body;
-
+    
     if (!rollno || !expoToken) {
-        return res.status(400).send("Roll number and expoToken are required");
+        return res.status(400).json({ message: "Roll number and expoToken are required" });  // Responding with JSON format
     }
 
     try {
@@ -110,16 +107,15 @@ app.post('/update-expo-token', async (req, res) => {
         );
 
         if (result.modifiedCount > 0) {
-            res.status(200).send({ success: true, message: "Token updated successfully." });
+            res.status(200).json({ success: true, message: "Token updated successfully." });  // Responding with JSON format
         } else {
-            res.status(400).send({ success: false, message: "Unable to update the token. Check the roll number." });
+            res.status(400).json({ success: false, message: "Unable to update the token. Check the roll number." });  // Responding with JSON format
         }
     } catch (error) {
         console.error("Error in /update-expo-token:", error);
-        res.status(500).send({ success: false, error: error.message });
+        res.status(500).json({ success: false, error: "Internal Server Error" });  // Hiding the internal error message
     }
 });
-
 
 // Other endpoints
 app.get('/get-class-values', async (req, res) => {
