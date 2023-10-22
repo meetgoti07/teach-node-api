@@ -40,6 +40,34 @@ const Student = attendanceDb.model('Student', new mongoose.Schema({
   }]
 }), 'studattens');
 
+app.post('/mark-absentees', async (req, res) => {
+  try {
+    const { subjectID, batch, date } = req.body;
+
+    // Find all students in the given batch
+    const students = await Student.find({ "batch": batch });
+
+    for (let student of students) {
+      const subject = student.subjects.find(s => s.subjectID === subjectID);
+      
+      if (subject) {
+        const attendanceForDate = subject.attendance.find(a => a.date.toISOString().slice(0, 10) === date);
+        
+        // If attendance is not marked for this subject on this date
+        if (!attendanceForDate) {
+          subject.attendance.push({ date: new Date(date), status: "absent" });
+        }
+      }
+      
+      await student.save();
+    }
+
+    res.json({ success: true, message: "Absentees marked successfully." });
+
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Internal Server Error" });
+  }
+});
 
 app.post('/send-notification', async (req, res) => {
     const { batch, message, title } = req.body;
