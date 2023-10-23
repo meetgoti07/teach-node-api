@@ -43,34 +43,39 @@ const Student = attendanceDb.model('Student', new mongoose.Schema({
 app.post('/mark-absentees', async (req, res) => {
   try {
     const { subjectID, batch, date } = req.body;
-      console.log(subjectID, batch , date);
 
-    // Find all students in the given batch
-    const students = await Student.find({ "batch": batch });
-      console.log(students);
+    // Find the class/batch based on the given batch
+    const classData = await ClassValue.findOne({ "value": batch });
 
-    for (let student of students) {
+    // Check if class exists
+    if(!classData) {
+      return res.status(404).json({ success: false, message: "Batch not found." });
+    }
+
+    for (let student of classData.students) {
+      // Assuming each student has subjects field which has attendance data
       const subject = student.subjects.find(s => s.subjectID === subjectID);
-      console.log(subject);
+
       if (subject) {
         const attendanceForDate = subject.attendance.find(a => a.date.toISOString().slice(0, 10) === date);
-          console.log(attendanceForDate);
         
         // If attendance is not marked for this subject on this date
         if (!attendanceForDate) {
           subject.attendance.push({ date: new Date(date), status: "Absent" });
         }
       }
-      
-      await student.save();
     }
+
+    await classData.save();
 
     res.json({ success: true, message: "Absentees marked successfully." });
 
   } catch (error) {
+    console.error(error);  // It's a good practice to log the error for debugging
     res.status(500).json({ success: false, message: "Internal Server Error" });
   }
 });
+
 
 app.post('/send-notification', async (req, res) => {
     const { batch, message, title } = req.body;
