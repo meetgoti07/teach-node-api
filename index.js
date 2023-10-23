@@ -28,6 +28,13 @@ const attendanceDb = mongoose.connection.useDb('attendance');
 const ClassValue = mongoose.model('DropdownValue', { value: String }, 'class');
 const SubjectValue = mongoose.model('SubjectValue', { value: String }, 'subject');
 const RoomValue = mongoose.model('RoomValue', { label: String, value: String}, 'room');
+const Batch = mongoose.model('Batch', new mongoose.Schema({
+    value: String,
+    students: [{
+        rollno: String,
+        expoToken: String
+    }]
+}), 'class');
 
 const Student = attendanceDb.model('Student', new mongoose.Schema({
   username: String,
@@ -41,44 +48,40 @@ const Student = attendanceDb.model('Student', new mongoose.Schema({
 }), 'studattens');
 
 app.post('/mark-absentees', async (req, res) => {
-  try {
-    const { subjectID, batch, date } = req.body;
-      console.log(subjectID, batch, date);
+    try {
+        const { subjectID, batch, date } = req.body;
 
-    // Find the class/batch based on the given batch
-    const classData = await ClassValue.findOne({ "value": batch });
-      console.log(classData);
+        // Find the class/batch based on the given batch
+        const batchData = await Batch.findOne({ "value": batch });
 
-    // Check if class exists
-    if(!classData) {
-      return res.status(404).json({ success: false, message: "Batch not found." });
-    }
-
-    for (let student of classData.students) {
-      // Assuming each student has subjects field which has attendance data
-      const subject = student.subjects.find(s => s.subjectID === subjectID);
-        console.log(student , subject);
-
-      if (subject) {
-        const attendanceForDate = subject.attendance.find(a => a.date.toISOString().slice(0, 10) === date);
-        
-        // If attendance is not marked for this subject on this date
-        if (!attendanceForDate) {
-          subject.attendance.push({ date: new Date(date), status: "Absent" });
+        // Check if batch exists
+        if(!batchData) {
+            return res.status(404).json({ success: false, message: "Batch not found." });
         }
-      }
+
+        for (let studentData of batchData.students) {
+            // Find the student in the attendance collection
+            const student = await Student.findOne({ "username": studentData.rollno });
+
+            if (student) {
+                const subject = student.subjects.find(s => s.subjectID === subjectID);
+                if (subject) {
+                    const attendanceForDate = subject.attendance.find(a => a.date.toISOString().slice(0, 10) === date);
+                    if (!attendanceForDate) {
+                        subject.attendance.push({ date: new Date(date), status: "Absent" });
+                        await student.save();
+                    }
+                }
+            }
+        }
+
+        res.json({ success: true, message: "Absentees marked successfully." });
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ success: false, message: "Internal Server Error" });
     }
-
-    await classData.save();
-
-    res.json({ success: true, message: "Absentees marked successfully." });
-
-  } catch (error) {
-    console.error(error);  // It's a good practice to log the error for debugging
-    res.status(500).json({ success: false, message: "Internal Server Error" });
-  }
 });
-
 
 app.post('/send-notification', async (req, res) => {
     const { batch, message, title } = req.body;
