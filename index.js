@@ -43,9 +43,11 @@ const Student = attendanceDb.model('Student', new mongoose.Schema({
 app.post('/mark-absentees', async (req, res) => {
   try {
     const { subjectID, batch, date } = req.body;
+      console.log(subjectID, batch, date);
 
     // Find the class/batch based on the given batch
     const classData = await ClassValue.findOne({ "value": batch });
+      console.log(classData);
 
     // Check if class exists
     if(!classData) {
@@ -55,6 +57,7 @@ app.post('/mark-absentees', async (req, res) => {
     for (let student of classData.students) {
       // Assuming each student has subjects field which has attendance data
       const subject = student.subjects.find(s => s.subjectID === subjectID);
+        console.log(student , subject);
 
       if (subject) {
         const attendanceForDate = subject.attendance.find(a => a.date.toISOString().slice(0, 10) === date);
